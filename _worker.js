@@ -25,6 +25,32 @@ async function handleApiRequest(request) {
     return new Response('Project ID is required.', { status: 400 });
   }
 
+  let csrfToken;
+  try {
+    const projectPageUrl = `https://playentry.org/project/${id}`;
+    const pageResponse = await fetch(projectPageUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+    });
+
+    if (!pageResponse.ok) {
+        return new Response(`Failed to fetch project page to get CSRF token. Status: ${pageResponse.status}`, { status: 502 });
+    }
+    const pageHtml = await pageResponse.text();
+    
+    const tokenRegex = /<meta name="csrf-token" content="([^"]+)">/;
+    const match = pageHtml.match(tokenRegex);
+
+    if (match && match[1]) {
+      csrfToken = match[1];
+    } else {
+      return new Response('Could not find CSRF token on the project page.', { status: 500 });
+    }
+  } catch (error) {
+    return new Response(`An error occurred while fetching the CSRF token: ${error.message}`, { status: 500 });
+  }
+
   const requestBody = {
     query,
     variables: { id },
@@ -37,9 +63,16 @@ async function handleApiRequest(request) {
         "accept": "*/*",
         "accept-language": "ja,en-US;q=0.9,en;q=0.8,ko;q=0.7",
         "content-type": "application/json",
-        "csrf-token": "qu1vxobS-bFB2mfJS3y5kdpx-4ebn9BJPyMI",
+        "csrf-token": csrfToken,
+        "priority": "u=1, i",
+        "sec-ch-ua": "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Linux\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "x-client-type": "Client",
         "Referer": `https://playentry.org/iframe/${id}`,
-        "x-client-type": "Client"
       },
       body: JSON.stringify(requestBody),
     });
