@@ -39,11 +39,15 @@ async function handleApiRequest(request) {
     if (!pageResponse.ok) {
         return new Response(`Failed to fetch project page. Status: ${pageResponse.status}`, { status: 502 });
     }
-    // Step 1.5: Capture the session cookie from the response
-    cookie = pageResponse.headers.get('set-cookie');
-    if (!cookie) {
+    // Step 1.5: Capture and parse the session cookie(s) from the response
+    const rawCookieHeader = pageResponse.headers.get('set-cookie');
+    if (!rawCookieHeader) {
         return new Response('Could not get session cookie from project page.', { status: 500 });
     }
+    // The request's 'Cookie' header should be a semicolon-separated list of name=value pairs.
+    // We parse the 'set-cookie' header(s) to strip out attributes like Path, Expires, etc.
+    const cookies = rawCookieHeader.split(',').map(c => c.trim().split(';')[0]);
+    cookie = cookies.join('; ');
 
     const pageHtml = await pageResponse.text();
     
