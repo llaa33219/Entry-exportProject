@@ -50,12 +50,13 @@
 
             try {
                 const response = await fetch(`/api/${projectId}`);
-                const data = await response.json();
                 
                 if (response.ok) {
+                    const data = await response.json();
                     resultElement.textContent = JSON.stringify(data, null, 2);
                 } else {
-                    resultElement.textContent = `오류 발생: ${response.status}\n\n${JSON.stringify(data, null, 2)}`;
+                    const errorText = await response.text();
+                    resultElement.textContent = `오류 발생: ${response.status}\n\n${errorText}`;
                 }
             } catch (error) {
                 resultElement.textContent = `네트워크 또는 기타 오류가 발생했습니다: ${error}`;
