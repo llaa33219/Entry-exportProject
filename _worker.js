@@ -40,8 +40,8 @@ async function handleApiRequest(request) {
     }
     const pageHtml = await pageResponse.text();
     
-    // Step 2: Find the main project script file from the HTML
-    const scriptRegex = /<script src="(\/js\/dist\/project\.[a-f0-9]+\.js)">/;
+    // Step 2: Find the main project script file from the HTML, which is a Next.js page bundle
+    const scriptRegex = /<script src="(\/_next\/static\/chunks\/pages\/project\/\[id\]-[a-f0-9]+\.js)">/;
     const scriptMatch = pageHtml.match(scriptRegex);
 
     if (!scriptMatch || !scriptMatch[1]) {
