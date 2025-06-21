@@ -38,6 +38,12 @@ async function handleApiRequest(request) {
     if (!pageResponse.ok) {
         return new Response(`Failed to fetch project page. Status: ${pageResponse.status}`, { status: 502 });
     }
+    // Step 1.5: Capture the session cookie from the response
+    const cookie = pageResponse.headers.get('set-cookie');
+    if (!cookie) {
+        return new Response('Could not get session cookie from project page.', { status: 500 });
+    }
+
     const pageHtml = await pageResponse.text();
     
     // Step 2: Find and parse the __NEXT_DATA__ JSON blob from the HTML
@@ -94,6 +100,8 @@ async function handleApiRequest(request) {
         "sec-fetch-site": "same-origin",
         "x-client-type": "Client",
         "Referer": `https://playentry.org/iframe/${id}`,
+        // Step 5: Add the captured cookie to the request headers
+        "Cookie": cookie,
       },
       body: JSON.stringify(requestBody),
     });
