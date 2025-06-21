@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entry 작품 정보 API</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f9f9f9; color: #333; }
+        h1 { color: #1a1a1a; }
+        code { background-color: #eee; padding: 2px 6px; border-radius: 4px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; }
+        .api-url { background-color: #e0e0e0; padding: 10px; border-radius: 5px; overflow-wrap: break-word; }
+        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        input[type="text"] { width: calc(100% - 22px); padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 15px; border: none; background-color: #007bff; color: white; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        pre { background-color: #2d2d2d; color: #f2f2f2; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>엔트리 작품 정보 API</h1>
+        <p>이 페이지는 엔트리 작품의 JSON 데이터를 가져오는 간단한 API를 제공합니다.</p>
+        
+        <h2>API 사용법</h2>
+        <p>API를 사용하려면 아래 URL 형식에 엔트리 작품 ID를 추가하여 GET 요청을 보내세요:</p>
+        <div class="api-url">
+            <code>/api/{작품_ID}</code>
+        </div>
+        <p>예시: <a href="/api/60893fd927581900d7072550" target="_blank">/api/60893fd927581900d7072550</a></p>
+
+        <h2>API 테스트</h2>
+        <p>아래 입력창에 작품 ID를 입력하고 '데이터 가져오기' 버튼을 클릭하여 API를 테스트할 수 있습니다.</p>
+        <input type="text" id="projectIdInput" placeholder="여기에 엔트리 작품 ID를 입력하세요.">
+        <button onclick="fetchProjectData()">데이터 가져오기</button>
+        <h3>결과:</h3>
+        <pre id="result"><code id="result-code">여기에 결과가 표시됩니다.</code></pre>
+    </div>
+
+    <script>
+        async function fetchProjectData() {
+            const projectId = document.getElementById('projectIdInput').value.trim();
+            const resultElement = document.getElementById('result-code');
+            
+            if (!projectId) {
+                resultElement.textContent = '작품 ID를 입력해주세요.';
+                return;
+            }
+
+            resultElement.textContent = '로딩 중...';
+
+            try {
+                const response = await fetch(`/api/${projectId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultElement.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    resultElement.textContent = `오류 발생: ${response.status}\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultElement.textContent = `네트워크 또는 기타 오류가 발생했습니다: ${error}`;
+            }
+        }
+    </script>
+</body>
+</html> 
