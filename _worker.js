@@ -26,6 +26,7 @@ async function handleApiRequest(request) {
   }
 
   let csrfToken;
+  let cookie;
   try {
     // Step 1: Fetch the project page HTML
     const projectPageUrl = `https://playentry.org/project/${id}`;
@@ -39,7 +40,7 @@ async function handleApiRequest(request) {
         return new Response(`Failed to fetch project page. Status: ${pageResponse.status}`, { status: 502 });
     }
     // Step 1.5: Capture the session cookie from the response
-    const cookie = pageResponse.headers.get('set-cookie');
+    cookie = pageResponse.headers.get('set-cookie');
     if (!cookie) {
         return new Response('Could not get session cookie from project page.', { status: 500 });
     }
