@@ -27,6 +27,7 @@ async function handleApiRequest(request) {
 
   let csrfToken;
   try {
+    // Step 1: Fetch the initial project page HTML
     const projectPageUrl = `https://playentry.org/project/${id}`;
     const pageResponse = await fetch(projectPageUrl, {
         headers: {
@@ -35,17 +36,35 @@ async function handleApiRequest(request) {
     });
 
     if (!pageResponse.ok) {
-        return new Response(`Failed to fetch project page to get CSRF token. Status: ${pageResponse.status}`, { status: 502 });
+        return new Response(`Failed to fetch project page. Status: ${pageResponse.status}`, { status: 502 });
     }
     const pageHtml = await pageResponse.text();
     
-    const tokenRegex = /<meta name="csrf-token" content="([^"]+)">/;
-    const match = pageHtml.match(tokenRegex);
+    // Step 2: Find the main project script file from the HTML
+    const scriptRegex = /<script src="(\/js\/dist\/project\.[a-f0-9]+\.js)">/;
+    const scriptMatch = pageHtml.match(scriptRegex);
 
-    if (match && match[1]) {
-      csrfToken = match[1];
+    if (!scriptMatch || !scriptMatch[1]) {
+        return new Response('Could not find project script file in the HTML.', { status: 500 });
+    }
+
+    const scriptUrl = `https://playentry.org${scriptMatch[1]}`;
+
+    // Step 3: Fetch the script file
+    const scriptResponse = await fetch(scriptUrl);
+    if (!scriptResponse.ok) {
+        return new Response(`Failed to fetch script file. Status: ${scriptResponse.status}`, { status: 502 });
+    }
+    const scriptContent = await scriptResponse.text();
+
+    // Step 4: Extract the CSRF token from the script content
+    const tokenRegex = /window\.__CSRF_TOKEN__="([^"]+)"/;
+    const tokenMatch = scriptContent.match(tokenRegex);
+
+    if (tokenMatch && tokenMatch[1]) {
+      csrfToken = tokenMatch[1];
     } else {
-      return new Response('Could not find CSRF token on the project page.', { status: 500 });
+      return new Response('Could not find CSRF token in the project script.', { status: 500 });
     }
   } catch (error) {
     return new Response(`An error occurred while fetching the CSRF token: ${error.message}`, { status: 500 });
