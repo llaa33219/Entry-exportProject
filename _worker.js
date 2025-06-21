@@ -27,11 +27,11 @@ async function handleApiRequest(request) {
 
   let csrfToken;
   try {
-    // Step 1: Fetch the initial project page HTML
+    // Step 1: Fetch the project page HTML
     const projectPageUrl = `https://playentry.org/project/${id}`;
     const pageResponse = await fetch(projectPageUrl, {
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
         }
     });
 
@@ -40,38 +40,34 @@ async function handleApiRequest(request) {
     }
     const pageHtml = await pageResponse.text();
     
-    // Step 2: Find ALL Next.js script files from the HTML.
-    const scriptRegex = /<script src="(\/_next\/static\/[^"]+\.js)">/g;
-    const scriptMatches = pageHtml.matchAll(scriptRegex);
-    const scriptUrls = [...scriptMatches].map(match => `https://playentry.org${match[1]}`);
+    // Step 2: Find and parse the __NEXT_DATA__ JSON blob from the HTML
+    const nextDataRegex = /<script id="__NEXT_DATA__" type="application\/json">(.+?)<\/script>/;
+    const nextDataMatch = pageHtml.match(nextDataRegex);
 
-    if (scriptUrls.length === 0) {
-        return new Response('Could not find any script files in the HTML.', { status: 500 });
+    if (!nextDataMatch || !nextDataMatch[1]) {
+        return new Response('Could not find __NEXT_DATA__ in the HTML. The page structure may have changed.', { status: 500 });
     }
 
-    // Step 3: Fetch each script file one by one and search for the token.
-    const tokenRegex = /window\.__CSRF_TOKEN__="([^"]+)"/;
+    const nextData = JSON.parse(nextDataMatch[1]);
+    
+    // Step 3: Extract the CSRF token from the JSON data.
+    // It's typically located in `props.pageProps`.
+    csrfToken = nextData?.props?.pageProps?.csrfToken;
 
-    for (const scriptUrl of scriptUrls) {
-        try {
-            const scriptResponse = await fetch(scriptUrl);
-            if (scriptResponse.ok) {
-                const scriptContent = await scriptResponse.text();
-                const tokenMatch = scriptContent.match(tokenRegex);
-                if (tokenMatch && tokenMatch[1]) {
-                    csrfToken = tokenMatch[1];
-                    break; // Token found, exit the loop.
-                }
-            }
-        } catch (e) {
-            // Ignore errors for individual script fetches and continue to the next one.
-        }
-    }
-
-    // Step 4: Check if a token was found after searching all scripts.
     if (!csrfToken) {
-      return new Response('Could not find CSRF token in any of the script files.', { status: 500 });
+      // As a fallback, search for the key anywhere in the stringified JSON
+      const jsonString = JSON.stringify(nextData);
+      const tokenInJsonRegex = /"csrfToken":"([^"]+)"/;
+      const tokenMatch = jsonString.match(tokenInJsonRegex);
+      if (tokenMatch && tokenMatch[1]) {
+          csrfToken = tokenMatch[1];
+      }
     }
+
+    if (!csrfToken) {
+      return new Response('Could not extract CSRF token from __NEXT_DATA__ blob.', { status: 500 });
+    }
+
   } catch (error) {
     return new Response(`An error occurred while fetching the CSRF token: ${error.message}`, { status: 500 });
   }
