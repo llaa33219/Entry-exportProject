@@ -40,31 +40,37 @@ async function handleApiRequest(request) {
     }
     const pageHtml = await pageResponse.text();
     
-    // Step 2: Find the main project script file from the HTML, which is a Next.js page bundle
-    const scriptRegex = /<script src="(\/_next\/static\/chunks\/pages\/project\/\[id\]-[a-f0-9]+\.js)">/;
-    const scriptMatch = pageHtml.match(scriptRegex);
+    // Step 2: Find ALL Next.js script files from the HTML.
+    const scriptRegex = /<script src="(\/_next\/static\/[^"]+\.js)">/g;
+    const scriptMatches = pageHtml.matchAll(scriptRegex);
+    const scriptUrls = [...scriptMatches].map(match => `https://playentry.org${match[1]}`);
 
-    if (!scriptMatch || !scriptMatch[1]) {
-        return new Response('Could not find project script file in the HTML.', { status: 500 });
+    if (scriptUrls.length === 0) {
+        return new Response('Could not find any script files in the HTML.', { status: 500 });
     }
 
-    const scriptUrl = `https://playentry.org${scriptMatch[1]}`;
-
-    // Step 3: Fetch the script file
-    const scriptResponse = await fetch(scriptUrl);
-    if (!scriptResponse.ok) {
-        return new Response(`Failed to fetch script file. Status: ${scriptResponse.status}`, { status: 502 });
-    }
-    const scriptContent = await scriptResponse.text();
-
-    // Step 4: Extract the CSRF token from the script content
+    // Step 3: Fetch each script file one by one and search for the token.
     const tokenRegex = /window\.__CSRF_TOKEN__="([^"]+)"/;
-    const tokenMatch = scriptContent.match(tokenRegex);
 
-    if (tokenMatch && tokenMatch[1]) {
-      csrfToken = tokenMatch[1];
-    } else {
-      return new Response('Could not find CSRF token in the project script.', { status: 500 });
+    for (const scriptUrl of scriptUrls) {
+        try {
+            const scriptResponse = await fetch(scriptUrl);
+            if (scriptResponse.ok) {
+                const scriptContent = await scriptResponse.text();
+                const tokenMatch = scriptContent.match(tokenRegex);
+                if (tokenMatch && tokenMatch[1]) {
+                    csrfToken = tokenMatch[1];
+                    break; // Token found, exit the loop.
+                }
+            }
+        } catch (e) {
+            // Ignore errors for individual script fetches and continue to the next one.
+        }
+    }
+
+    // Step 4: Check if a token was found after searching all scripts.
+    if (!csrfToken) {
+      return new Response('Could not find CSRF token in any of the script files.', { status: 500 });
     }
   } catch (error) {
     return new Response(`An error occurred while fetching the CSRF token: ${error.message}`, { status: 500 });
